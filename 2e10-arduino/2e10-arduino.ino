@@ -26,8 +26,8 @@ const int pulseDelayUs = 100000;
 //PID
 double Input, Output, Setpoint;
 double Kp = 15; // Kp needs to be higher than 10
-double Ki = 0.15; //  Ki needs to be very small
-double Kd = 0; // Kd keep as 0 because Kd is a derivative and will only work for steady signals so the rate of error is always changing
+double Ki = 0.001; //  Ki needs to be very small
+double Kd = 2; // Kd keep as 0 because Kd is a derivative and will only work for steady signals so the rate of error is always changing
 PID myPID(&Input, &Output, &Setpoint, Kp, Ki, Kd, DIRECT); // Creating PID object
 
 char ssid[] = "fuckthis";
@@ -173,23 +173,27 @@ void loop() {
   }
 
   myPID.Compute();
-
+  Serial.print("Input: ");
+  Serial.println(Input);
+  Serial.print("Output: ");
+  Serial.println(Output);
+  
   //
   // Now we move the wheels based on the status of each eye.
   //
   
   if (leyeStatus() && reyeStatus()){
-    moveForwards(Output, Output);
+    moveForwards(255-Output, 255-Output);
     return;
   }
 
   if (leyeStatus() && !reyeStatus()){
-   moveForwards(Output / 2, Output);
+   moveForwards(0, 255-Output);
    return;
   }
 
   if (!leyeStatus() && reyeStatus()){
-   moveForwards(Output, Output / 2);
+   moveForwards(255-Output, 0);
    return;
   }
 
