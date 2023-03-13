@@ -122,13 +122,13 @@ float distanceToObstacleCm() {
 
 bool obstacleDetected = false;
 bool keepDriving = true;
-const float obstacleStopDistanceCm = 20;
+const float obstacleStopDistanceCm = 10;
 
 void loop() {
   // We need to pulse on each tick to have an up-to-date obstacle distance.
   //
   pulse();
-
+  
   // If data is available, read it and see if we should keep driving or stop.
   // Update keepDriving based on this.
   //
@@ -142,6 +142,8 @@ void loop() {
       keepDriving = false;
     }
   }
+
+  Input = distanceToObstacleCm();
 
   // Check if an obstacle is detected. If so, we stop.
   // We also update obstacleDetected to true.
@@ -158,7 +160,7 @@ void loop() {
     obstacleDetected = true;
     return;
   }
-
+  
   // If we get here, there is no obstacle and we are clear to drive.
   //
   obstacleDetected = false;
@@ -170,22 +172,24 @@ void loop() {
     return;
   }
 
+  myPID.Compute();
+
   //
   // Now we move the wheels based on the status of each eye.
   //
   
   if (leyeStatus() && reyeStatus()){
-    moveForwards(255, 255);
+    moveForwards(Output, Output);
     return;
   }
 
   if (leyeStatus() && !reyeStatus()){
-   moveForwards(100, 255);
+   moveForwards(Output / 2, Output);
    return;
   }
 
   if (!leyeStatus() && reyeStatus()){
-   moveForwards(255, 100);
+   moveForwards(Output, Output / 2);
    return;
   }
 
