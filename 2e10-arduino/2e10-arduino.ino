@@ -173,11 +173,14 @@ void loop() {
   }
 
   myPID.Compute();
-  Serial.print("Input: ");
-  Serial.println(Input);
-  Serial.print("Output: ");
-  Serial.println(Output);
   
+  static int lastTimeThatDistanceUpdateWasSentInMs = 0;
+  if (millis() - lastTimeThatDistanceUpdateWasSentInMs > 1000) {
+    lastTimeThatDistanceUpdateWasSentInMs = millis();
+
+    server.write((uint8_t)distanceToObstacleCm());
+  }
+
   //
   // Now we move the wheels based on the status of each eye.
   //
@@ -188,12 +191,12 @@ void loop() {
   }
 
   if (leyeStatus() && !reyeStatus()){
-   moveForwards(0, 255-Output);
+   moveForwards((255-Output)/2, 255-Output);
    return;
   }
 
   if (!leyeStatus() && reyeStatus()){
-   moveForwards(255-Output, 0);
+   moveForwards(255-Output, (255-Output)/2);
    return;
   }
 
