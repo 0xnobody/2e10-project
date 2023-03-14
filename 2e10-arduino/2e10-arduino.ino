@@ -1,6 +1,7 @@
 
 #include <PID_v1.h>
 #include <WiFiNINA.h>
+#include <math.h>
 
 const int LED = 13;
 
@@ -26,8 +27,8 @@ const int pulseDelayUs = 100000;
 //PID
 double Input, Output, Setpoint;
 double Kp = 15; // Kp needs to be higher than 10
-double Ki = 0.001; //  Ki needs to be very small
-double Kd = 2; // Kd keep as 0 because Kd is a derivative and will only work for steady signals so the rate of error is always changing
+double Ki = 0.035; //  Ki needs to be very small
+double Kd = 1; // Kd keep as 0 because Kd is a derivative and will only work for steady signals so the rate of error is always changing
 PID myPID(&Input, &Output, &Setpoint, Kp, Ki, Kd, DIRECT); // Creating PID object
 
 char ssid[] = "fuckthis";
@@ -41,6 +42,7 @@ void setup() {
 
   WiFi.beginAP(ssid, pass);
   IPAddress ip = WiFi.localIP();
+  Serial.println(ip);
   server.begin();
 
   Setpoint = 20; //buggy stops
@@ -123,6 +125,7 @@ float distanceToObstacleCm() {
 bool obstacleDetected = false;
 bool keepDriving = true;
 const float obstacleStopDistanceCm = 10;
+const int telemetryDelayUpdateMs = 500;
 
 void loop() {
   // We need to pulse on each tick to have an up-to-date obstacle distance.
@@ -144,6 +147,22 @@ void loop() {
   }
 
   Input = distanceToObstacleCm();
+
+  static int telemetryUpdateTimeMs = 0;
+  if (millis() - telemetryUpdateTimeMs > telemetryDelayUpdateMs) {
+    telemetryUpdateTimeMs = millis();
+    
+    String dist_str = String("D:") + String(round(Input));
+    server.write(dist_str.c_str());
+
+    // TODO: replace 1337.0f with the speed
+    String speed_str = String("S:") + String(1337.0f) + "\n";
+    server.write(speed_str.c_str());
+    
+    // TODO: replace 420.0f with the object speed
+    String obj_speed_str = String("OS:") + String(420.0f);
+    server.write(obj_speed_str.c_str());
+  }
 
   // Check if an obstacle is detected. If so, we stop.
   // We also update obstacleDetected to true.
@@ -173,13 +192,6 @@ void loop() {
   }
 
   myPID.Compute();
-  
-  static int lastTimeThatDistanceUpdateWasSentInMs = 0;
-  if (millis() - lastTimeThatDistanceUpdateWasSentInMs > 1000) {
-    lastTimeThatDistanceUpdateWasSentInMs = millis();
-
-    server.write((uint8_t)distanceToObstacleCm());
-  }
 
   //
   // Now we move the wheels based on the status of each eye.
