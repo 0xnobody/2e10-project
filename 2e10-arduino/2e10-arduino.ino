@@ -28,6 +28,12 @@ const int pulseDelayUs = 100000;
 const int LENC = 2;
 const int RENC = 3;
 
+// Calculate velocity from encoders
+float measure_rpm = 0;
+float ang_velocity = 0;
+float lin_velocity = 0;
+const float rpm_to_radians = 0.10471975512;
+
 //PID
 double Input, Output, Setpoint;
 double Kp = 15; // Kp needs to be higher than 10
