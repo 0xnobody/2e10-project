@@ -29,10 +29,13 @@ const int LENC = 2;
 const int RENC = 3;
 
 // Calculate velocity from encoders
+volatile long right_wheel_pulse_count = 0; // Keep track of the number of right wheel pulses
 float measure_rpm = 0;
 float ang_velocity = 0;
 float lin_velocity = 0;
-const float rpm_to_radians = 0.10471975512;
+const float rpm_to_radians = 0.10471975512; //conversion factor
+const int wheel_radius = ; //measured manually
+const int ENC_COUNT_REV = ;
 
 //PID
 double Input, Output, Setpoint;
@@ -84,8 +87,8 @@ void setup() {
   //Encoders
   pinMode( LENC, INPUT );
   pinMode( RENC, INPUT );
-  attachInterrupt(digitalPinToInterrupt(LENC), ?, RISING);
-  attachInterrupt(digitalPinToInterrupt(RENC), ?, RISING);
+  attachInterrupt(digitalPinToInterrupt(RENC), right_wheel_pulse, RISING);
+  //attachInterrupt(digitalPinToInterrupt(RENC), ?, RISING);
 }
 
 void pulse() {
@@ -143,6 +146,27 @@ bool keepDriving = true;
 const float obstacleStopDistanceCm = 10;
 const int telemetryDelayUpdateMs = 500;
 
+// Increment the number of pulses by 1
+void right_wheel_pulse() {
+  // Read the value for the encoder for the right wheel
+  int val = digitalRead(RENC);
+ 
+  if(val == HIGH) {
+    right_wheel_pulse_count++;
+  }
+}
+
+void calc_velocity() {
+  // Calculate RPM
+  calc_rpm = (float)(right_wheel_pulse_count * 60 / ENC_COUNT_REV);
+
+  // Calculate Angular Velocity (rad/s)
+  ang_velocity = calc_rpm * rpm_to_radians;
+
+  // Calculate Linear Velocity (m/s)
+  lin_velocity = ang_velocity * wheel_radius;
+}
+
 void loop() {
   // We need to pulse on each tick to have an up-to-date obstacle distance.
   //
@@ -172,7 +196,7 @@ void loop() {
     server.write(dist_str.c_str());
 
     // TODO: replace 1337.0f with the speed
-    String speed_str = String("S:") + String(1337.0f) + "\n";
+    String speed_str = String("S:") + String(round(lin_velocity)) + "\n";
     server.write(speed_str.c_str());
     
     // TODO: replace 420.0f with the object speed
