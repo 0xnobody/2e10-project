@@ -24,6 +24,10 @@ const int TRIG = 14;
 const int pulseDurationUs = 50;
 const int pulseDelayUs = 100000;
 
+// Encoders
+const int LENC = 2;
+const int RENC = 3;
+
 //PID
 double Input, Output, Setpoint;
 double Kp = 15; // Kp needs to be higher than 10
@@ -70,6 +74,12 @@ void setup() {
   pinMode(ECHO, INPUT);
   pinMode(LED, OUTPUT);
   attachInterrupt(digitalPinToInterrupt(ECHO), echoInterrupt, CHANGE);
+
+  //Encoders
+  pinMode( LENC, INPUT );
+  pinMode( RENC, INPUT );
+  attachInterrupt(digitalPinToInterrupt(LENC), ?, RISING);
+  attachInterrupt(digitalPinToInterrupt(RENC), ?, RISING);
 }
 
 void pulse() {
