@@ -24,20 +24,11 @@ const int TRIG = 14;
 const int pulseDurationUs = 50;
 const int pulseDelayUs = 100000;
 
-// Encoders
-const int LENC = 2;
-const int RENC = 3;
+// ENCODERS
+const int LENC = 2; //left encoder
+const int RENC = 3; //right encoder
 
-// Calculate velocity from encoders
-volatile long right_wheel_pulse_count = 0; // Keep track of the number of right wheel pulses
-float measure_rpm = 0;
-float ang_velocity = 0;
-float lin_velocity = 0;
-const float rpm_to_radians = 0.10471975512; //conversion factor
-const int wheel_radius = ; //measured manually
-const int ENC_COUNT_REV = ;
-
-//PID
+// PID
 double Input, Output, Setpoint;
 double Kp = 15; // Kp needs to be higher than 10
 double Ki = 0.035; //  Ki needs to be very small
@@ -65,30 +56,27 @@ void setup() {
   myPID.SetOutputLimits(0,255);
 
   // Set up input sensors.
-  //
-  pinMode( LEYE, INPUT );
-  pinMode( REYE, INPUT );
+  pinMode(LEYE, INPUT);
+  pinMode(REYE, INPUT);
 
   // Set up motors.
-  //
-  pinMode( LMOTOR1, OUTPUT );
-  pinMode( LMOTOR2, OUTPUT );
+  pinMode(LMOTOR1, OUTPUT);
+  pinMode(LMOTOR2, OUTPUT);
 
-  pinMode( RMOTOR1, OUTPUT );
-  pinMode( RMOTOR2, OUTPUT );
+  pinMode(RMOTOR1, OUTPUT);
+  pinMode(RMOTOR2, OUTPUT);
 
   // Set up ultrasound.
-  //
   pinMode(TRIG, OUTPUT);
   pinMode(ECHO, INPUT);
   pinMode(LED, OUTPUT);
   attachInterrupt(digitalPinToInterrupt(ECHO), echoInterrupt, CHANGE);
 
-  //Encoders
-  pinMode( LENC, INPUT );
-  pinMode( RENC, INPUT );
-  attachInterrupt(digitalPinToInterrupt(RENC), right_wheel_pulse, RISING);
-  //attachInterrupt(digitalPinToInterrupt(RENC), ?, RISING);
+  // Encoders
+  pinMode(LENC, INPUT);
+  pinMode(RENC, INPUT);
+  attachInterrupt(digitalPinToInterrupt(LENC), wheels_pulse, RISING);
+  attachInterrupt(digitalPinToInterrupt(RENC), wheels_pulse, RISING);
 }
 
 void pulse() {
@@ -98,7 +86,6 @@ void pulse() {
   int timeSinceLastPulse = micros() - lastTimePulsed;
 
   // Check if we have waited long enough to trigger another pulse.
-  //
   if (!pulseSent && timeSinceLastPulse > pulseDelayUs) {
     digitalWrite(TRIG, HIGH);
     lastTimePulsed = micros();
@@ -107,7 +94,6 @@ void pulse() {
   }
 
   // Check if pulse duration elapsed.
-  //
   if (pulseSent && timeSinceLastPulse > pulseDurationUs) {
     digitalWrite(TRIG, LOW);
     pulseSent = false;
@@ -141,40 +127,54 @@ float distanceToObstacleCm() {
   return (float)echoDurationUs * 0.000001 * 343 * 100 * 0.5;
 }
 
-bool obstacleDetected = false;
-bool keepDriving = true;
-const float obstacleStopDistanceCm = 10;
-const int telemetryDelayUpdateMs = 500;
+// Calculate velocity from encoders
+volatile long left_wheel_pulse_count = 0; // Keep track of the number of left wheel pulses
+volatile long right_wheel_pulse_count = 0; // Keep track of the number of right wheel pulses
+const int wheel_radius = ; // Measured manually - in meters (TODO)
+const int ENC_COUNT_REV = ; //Measured manually (TODO)
+const float rpm_to_radians = 0.10471975512; // Conversion factor
+float measure_rpm_left = 0;
+float measure_rpm_right = 0;
+float left_ang_velocity = 0;
+float right_ang_velocity = 0;
+float total_lin_velocity = 0;
 
-// Increment the number of pulses by 1
-void right_wheel_pulse() {
+// Increment the number of pulses by 1 for both wheels
+void wheels_pulse() {
+  // Read the value for the encoder for the left wheel
+  if(digitalRead(LENC) == HIGH) {
+    left_wheel_pulse_count++;
+  }
   // Read the value for the encoder for the right wheel
-  int val = digitalRead(RENC);
- 
-  if(val == HIGH) {
+  if(digitalRead(RENC) == HIGH) {
     right_wheel_pulse_count++;
   }
 }
 
 void calc_velocity() {
   // Calculate RPM
-  calc_rpm = (float)(right_wheel_pulse_count * 60 / ENC_COUNT_REV);
+  calc_rpm_left = (float)(left_wheel_pulse_count * 60 / ENC_COUNT_REV);
+  calc_rpm_right = (float)(right_wheel_pulse_count * 60 / ENC_COUNT_REV);
 
   // Calculate Angular Velocity (rad/s)
-  ang_velocity = calc_rpm * rpm_to_radians;
+  left_ang_velocity = calc_rpm_left * rpm_to_radians;
+  right_ang_velocity = calc_rpm_right * rpm_to_radians;
 
-  // Calculate Linear Velocity (m/s)
-  lin_velocity = ang_velocity * wheel_radius;
+  // Calculate Linear Velocity (m/s) - average value for both left and right encoders
+  total_lin_velocity = ((left_ang_velocity + right_ang_velocity) * wheel_radius) / 2;
 }
+
+bool obstacleDetected = false;
+bool keepDriving = true;
+const float obstacleStopDistanceCm = 10;
+const int telemetryDelayUpdateMs = 500;
 
 void loop() {
   // We need to pulse on each tick to have an up-to-date obstacle distance.
-  //
   pulse();
   
   // If data is available, read it and see if we should keep driving or stop.
   // Update keepDriving based on this.
-  //
   client = server.available();
   if (client.connected()) {
     char c = client.read();
@@ -188,6 +188,8 @@ void loop() {
 
   Input = distanceToObstacleCm();
 
+  calc_velocity();
+
   static int telemetryUpdateTimeMs = 0;
   if (millis() - telemetryUpdateTimeMs > telemetryDelayUpdateMs) {
     telemetryUpdateTimeMs = millis();
@@ -195,24 +197,24 @@ void loop() {
     String dist_str = String("D:") + String(round(Input));
     server.write(dist_str.c_str());
 
-    // TODO: replace 1337.0f with the speed
-    String speed_str = String("S:") + String(round(lin_velocity)) + "\n";
+    String speed_str = String("S:") + String(round(total_lin_velocity)) + "\n";
     server.write(speed_str.c_str());
     
     // TODO: replace 420.0f with the object speed
     String obj_speed_str = String("OS:") + String(420.0f);
     server.write(obj_speed_str.c_str());
+
+    left_wheel_pulse_count = 0;
+    right_wheel_pulse_count = 0;
   }
 
   // Check if an obstacle is detected. If so, we stop.
   // We also update obstacleDetected to true.
-  //
   if (distanceToObstacleCm() < obstacleStopDistanceCm) {
     stop(); 
 
     // If previously an obstacle was NOT detected, we inform the
     // server that one is detected.
-    //
     if (!obstacleDetected) {
       server.write("Obstacle detected!");
     }
@@ -221,11 +223,9 @@ void loop() {
   }
   
   // If we get here, there is no obstacle and we are clear to drive.
-  //
   obstacleDetected = false;
 
   // We only drive if the server has set keepDriving = true.
-  //
   if (!keepDriving) {
     stop();
     return;
@@ -238,17 +238,17 @@ void loop() {
   //
   
   if (leyeStatus() && reyeStatus()){
-    moveForwards(255-Output, 255-Output);
+    moveForward(255-Output, 255-Output);
     return;
   }
 
   if (leyeStatus() && !reyeStatus()){
-   moveForwards((255-Output)/2, 255-Output);
+   moveForward((255-Output)/2, 255-Output);
    return;
   }
 
   if (!leyeStatus() && reyeStatus()){
-   moveForwards(255-Output, (255-Output)/2);
+   moveForward(255-Output, (255-Output)/2);
    return;
   }
 
@@ -258,10 +258,10 @@ void loop() {
 }
 
 void stop() {
-  moveForwards(0, 0);
+  moveForward(0, 0);
 }
 
-void moveForwards(int leftPower, int rightPower) {
+void moveForward(int leftPower, int rightPower) {
   analogWrite(LMOTOR1, leftPower);
   analogWrite(LMOTOR2, 0);
   analogWrite(RMOTOR1, rightPower);
