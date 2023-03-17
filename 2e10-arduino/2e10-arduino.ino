@@ -51,7 +51,7 @@ void setup() {
 
   Setpoint = 20; //buggy stops
 
-  //turn the PID on
+  // Turn the PID on.
   myPID.SetMode(AUTOMATIC);
   myPID.SetOutputLimits(0,255);
 
@@ -72,7 +72,7 @@ void setup() {
   pinMode(LED, OUTPUT);
   attachInterrupt(digitalPinToInterrupt(ECHO), echoInterrupt, CHANGE);
 
-  // Encoders
+  // Set up encoders.
   pinMode(LENC, INPUT);
   pinMode(RENC, INPUT);
   attachInterrupt(digitalPinToInterrupt(LENC), wheels_pulse, RISING);
@@ -130,11 +130,11 @@ float distanceToObstacleCm() {
 // Calculate velocity from encoders
 volatile long left_wheel_pulse_count = 0; // Keep track of the number of left wheel pulses
 volatile long right_wheel_pulse_count = 0; // Keep track of the number of right wheel pulses
-const int wheel_radius = ; // Measured manually - in meters (TODO)
-const int ENC_COUNT_REV = ; //Measured manually (TODO)
+const int wheel_radius = 0.033; // Measured manually - in meters
+const int ENC_COUNT_REV = 620; //Measured manually (TODO)
 const float rpm_to_radians = 0.10471975512; // Conversion factor
-float measure_rpm_left = 0;
-float measure_rpm_right = 0;
+float calc_rpm_left = 0;
+float calc_rpm_right = 0;
 float left_ang_velocity = 0;
 float right_ang_velocity = 0;
 float total_lin_velocity = 0;
@@ -189,7 +189,7 @@ void loop() {
   Input = distanceToObstacleCm();
 
   calc_velocity();
-
+  
   static int telemetryUpdateTimeMs = 0;
   if (millis() - telemetryUpdateTimeMs > telemetryDelayUpdateMs) {
     telemetryUpdateTimeMs = millis();
