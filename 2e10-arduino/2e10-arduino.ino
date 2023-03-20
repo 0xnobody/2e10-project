@@ -124,7 +124,7 @@ bool reyeStatus() {
   return digitalRead(REYE) == HIGH;
 }
 
-float distanceToObstacleCm() {
+double distanceToObstacleCm() {
   // microseconds * toSecondsFactor * speedOfSound * toCmFactor * 0.5 (sound bounces)
   return (float)echoDurationUs * 0.000001 * 343 * 100 * 0.5;
 }
@@ -137,10 +137,10 @@ const double wheel_circ = PI * 0.065; // in meters: circumference
 const double ticks_revolution = 8 * 120; // Ticks per wheel revolution = 8 ticks per motor rotation × 120 motor rotations per wheel revolution
 volatile long old_ticks = 0;
 volatile long d_ticks = 0;
-int old_time = 0;
-int d_time = 0;
-float old_distance = 0;
-float d_distance = 0;
+double old_time = 0;
+double d_time = 0;
+double old_distance = 0;
+double d_distance = 0;
 double velocity = 0; // Buggy
 double relativeV = 0; // Relative velocity
 double object_velocity = 0; // Object
@@ -161,14 +161,14 @@ void calc_velocity() {
   old_ticks = ticks_count;
 
   // Update time
-  d_time = (millis() - old_time) / 1000;
+  d_time = (millis() - old_time) / 1000.0d;
   old_time = millis();
 
   // Calculate velocity of buggy
   velocity = (wheel_circ * d_ticks) / (ticks_revolution * d_time);
 
   // Calculate velocity of object
-  d_distance = (distanceToObstacleCm() - old_distance) / 100;
+  d_distance = (distanceToObstacleCm() - old_distance) / 100.0d;
   old_distance = distanceToObstacleCm();
   relativeV = d_distance / d_time;
   object_velocity = velocity - relativeV;
