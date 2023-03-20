@@ -212,9 +212,7 @@ void loop() {
   Serial.println(velocity, 6);
   Serial.print("Object Velocity: ");
   Serial.println(object_velocity, 6);
-  delay(1000);
   
-  /*
   static int telemetryUpdateTimeMs = 0;
   if (millis() - telemetryUpdateTimeMs > telemetryDelayUpdateMs) {
     telemetryUpdateTimeMs = millis();
@@ -228,7 +226,6 @@ void loop() {
     String obj_speed_str = String("OS:") + String(object_velocity);
     server.write(obj_speed_str.c_str());
   }
-  */
 
   // Check if an obstacle is detected. If so, we stop.
   // We also update obstacleDetected to true.
