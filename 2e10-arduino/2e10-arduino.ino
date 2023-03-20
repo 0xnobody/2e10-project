@@ -5,6 +5,8 @@
 
 const int LED = 13;
 
+#define PI 3.1415926535897932384626433832795
+
 // IR SENSORS
 const int LEYE = 21; //left sensor
 const int REYE = 20; //right sensor
@@ -73,10 +75,10 @@ void setup() {
   attachInterrupt(digitalPinToInterrupt(ECHO), echoInterrupt, CHANGE);
 
   // Set up encoders.
-  pinMode(LENC, INPUT);
-  pinMode(RENC, INPUT);
-  attachInterrupt(digitalPinToInterrupt(LENC), wheels_pulse, RISING);
-  attachInterrupt(digitalPinToInterrupt(RENC), wheels_pulse, RISING);
+  pinMode(LENC, INPUT_PULLUP);
+  pinMode(RENC, INPUT_PULLUP);
+  attachInterrupt(digitalPinToInterrupt(LENC), left_wheel_pulse, RISING);
+  attachInterrupt(digitalPinToInterrupt(RENC), right_wheel_pulse, RISING);
 }
 
 void pulse() {
@@ -130,38 +132,38 @@ float distanceToObstacleCm() {
 // Calculate velocity from encoders
 volatile long left_wheel_pulse_count = 0; // Keep track of the number of left wheel pulses
 volatile long right_wheel_pulse_count = 0; // Keep track of the number of right wheel pulses
-const int wheel_radius = 0.033; // Measured manually - in meters
-const int ENC_COUNT_REV = 620; //Measured manually (TODO)
-const float rpm_to_radians = 0.10471975512; // Conversion factor
-float calc_rpm_left = 0;
-float calc_rpm_right = 0;
-float left_ang_velocity = 0;
-float right_ang_velocity = 0;
-float total_lin_velocity = 0;
+volatile long pulse_count = 0; // Average from both wheels
+const int wheel_circum = PI * 0.065; // Measured manually - in meters
+const int ENC_COUNT_REV = 8 * 120;
+volatile long velocity = 0;
+volatile long old_ticks = 0;
+volatile long d_ticks = 0;
+volatile long old_time = 0;
+volatile long d_time = 0;
 
 // Increment the number of pulses by 1 for both wheels
-void wheels_pulse() {
-  // Read the value for the encoder for the left wheel
-  if(digitalRead(LENC) == HIGH) {
-    left_wheel_pulse_count++;
-  }
-  // Read the value for the encoder for the right wheel
-  if(digitalRead(RENC) == HIGH) {
-    right_wheel_pulse_count++;
-  }
+void left_wheel_pulse() {
+  left_wheel_pulse_count++;
+}
+
+void right_wheel_pulse() {
+  right_wheel_pulse_count++;
 }
 
 void calc_velocity() {
-  // Calculate RPM
-  calc_rpm_left = (float)(left_wheel_pulse_count * 60 / ENC_COUNT_REV);
-  calc_rpm_right = (float)(right_wheel_pulse_count * 60 / ENC_COUNT_REV);
+  // Update ticks
+  pulse_count = (left_wheel_pulse_count + right_wheel_pulse_count) / 2;
+  d_ticks = pulse_count - old_ticks;
+  old_ticks = pulse_count;
 
-  // Calculate Angular Velocity (rad/s)
-  left_ang_velocity = calc_rpm_left * rpm_to_radians;
-  right_ang_velocity = calc_rpm_right * rpm_to_radians;
+  // Update time
+  d_time = (millis() - old_time)/1000;
+  old_time = millis();
 
-  // Calculate Linear Velocity (m/s) - average value for both left and right encoders
-  total_lin_velocity = ((left_ang_velocity + right_ang_velocity) * wheel_radius) / 2;
+  // Calculate velocity
+  //velocity = (wheel_circum * d_ticks) / (ENC_COUNT_REV * d_time);
+  velocity = ((wheel_circum/ENC_COUNT_REV)* d_ticks) / d_time;
+  
 }
 
 bool obstacleDetected = false;
@@ -189,7 +191,20 @@ void loop() {
   Input = distanceToObstacleCm();
 
   calc_velocity();
+
+  Serial.print("LEFT Ticks: ");
+  Serial.println(left_wheel_pulse_count);
+  Serial.print("RIGHT Ticks: ");
+  Serial.println(right_wheel_pulse_count);
+  Serial.print("d Ticks: ");
+  Serial.println(d_ticks);  
+  Serial.print("d time: ");
+  Serial.println(d_time);  
+  Serial.print("Speed: ");
+  Serial.println(velocity);
+  delay(1000);
   
+  /*
   static int telemetryUpdateTimeMs = 0;
   if (millis() - telemetryUpdateTimeMs > telemetryDelayUpdateMs) {
     telemetryUpdateTimeMs = millis();
@@ -197,16 +212,14 @@ void loop() {
     String dist_str = String("D:") + String(round(Input));
     server.write(dist_str.c_str());
 
-    String speed_str = String("S:") + String(round(total_lin_velocity)) + "\n";
+    String speed_str = String("S:") + String(round(velocity)) + "\n";
     server.write(speed_str.c_str());
     
     // TODO: replace 420.0f with the object speed
     String obj_speed_str = String("OS:") + String(420.0f);
     server.write(obj_speed_str.c_str());
-
-    left_wheel_pulse_count = 0;
-    right_wheel_pulse_count = 0;
   }
+  */
 
   // Check if an obstacle is detected. If so, we stop.
   // We also update obstacleDetected to true.
