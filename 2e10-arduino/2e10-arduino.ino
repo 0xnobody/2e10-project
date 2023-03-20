@@ -77,8 +77,8 @@ void setup() {
   // Set up encoders.
   pinMode(LENC, INPUT_PULLUP);
   pinMode(RENC, INPUT_PULLUP);
-  attachInterrupt(digitalPinToInterrupt(LENC), left_wheel_pulse, RISING);
-  attachInterrupt(digitalPinToInterrupt(RENC), right_wheel_pulse, RISING);
+  attachInterrupt(digitalPinToInterrupt(LENC), left_wheel_ticks, RISING);
+  attachInterrupt(digitalPinToInterrupt(RENC), right_wheel_ticks, RISING);
 }
 
 void pulse() {
@@ -130,39 +130,48 @@ float distanceToObstacleCm() {
 }
 
 // Calculate velocity from encoders
-volatile long left_wheel_pulse_count = 0; // Keep track of the number of left wheel pulses
-volatile long right_wheel_pulse_count = 0; // Keep track of the number of right wheel pulses
-volatile long pulse_count = 0; // Average from both wheels
+volatile long left_wheel_ticks_count = 0; // Keep track of the number of left wheel ticks
+volatile long right_wheel_ticks_count = 0; // Keep track of the number of right wheel ticks
+volatile long ticks_count = 0; // Average from both wheels
 const int wheel_circ = PI * 0.065; // in meters: circumference
 const int ticks_revolution = 8 * 120; // Ticks per wheel revolution = 8 ticks per motor rotation × 120 motor rotations per wheel revolution
 volatile long old_ticks = 0;
 volatile long d_ticks = 0;
-volatile long old_time = 0;
-volatile long d_time = 0;
-volatile long velocity = 0;
+int old_time = 0;
+int d_time = 0;
+float old_distance = 0;
+float d_distance = 0;
+double velocity = 0; // Buggy
+double relativeV = 0; // Relative velocity
+double object_velocity = 0; // Object
 
-// Increment the number of pulses by 1 for both wheels
-void left_wheel_pulse() {
-  left_wheel_pulse_count++;
+// Increment the number of ticks by 1 for both wheels
+void left_wheel_ticks() {
+  left_wheel_ticks_count++;
 }
 
-void right_wheel_pulse() {
-  right_wheel_pulse_count++;
+void right_wheel_ticks() {
+  right_wheel_ticks_count++;
 }
 
 void calc_velocity() {
   // Update ticks
-  pulse_count = (left_wheel_pulse_count + right_wheel_pulse_count) / 2;
-  d_ticks = pulse_count - old_ticks;
-  old_ticks = pulse_count;
+  ticks_count = (left_wheel_ticks_count + right_wheel_ticks_count) / 2;
+  d_ticks = ticks_count - old_ticks;
+  old_ticks = ticks_count;
 
   // Update time
   d_time = (millis() - old_time) / 1000;
   old_time = millis();
 
-  // Calculate velocity
-  //velocity = (wheel_circ * d_ticks) / (ticks_revolution * d_time);
-  velocity = ((wheel_circ / ticks_revolution) * d_ticks) / d_time;
+  // Calculate velocity of buggy
+  velocity = (wheel_circ * d_ticks) / (ticks_revolution * d_time);
+
+  // Calculate velocity of object
+  d_distance = (distanceToObstacleCm() / 100) - old_distance;
+  old_distance = distanceToObstacleCm();
+  relativeV = d_distance / d_time;
+  object_velocity = velocity - relativeV;
 }
 
 bool obstacleDetected = false;
@@ -192,15 +201,17 @@ void loop() {
   calc_velocity();
 
   Serial.print("Left Ticks: ");
-  Serial.println(left_wheel_pulse_count);
+  Serial.println(left_wheel_ticks_count);
   Serial.print("Right Ticks: ");
-  Serial.println(right_wheel_pulse_count);
+  Serial.println(right_wheel_ticks_count);
   Serial.print("d Ticks: ");
   Serial.println(d_ticks);  
   Serial.print("d Time: ");
   Serial.println(d_time);  
   Serial.print("Velocity: ");
   Serial.println(velocity);
+  Serial.print("Object Velocity: ");
+  Serial.println(object_velocity);
   delay(1000);
   
   /*
@@ -214,8 +225,7 @@ void loop() {
     String speed_str = String("S:") + String(round(velocity)) + "\n";
     server.write(speed_str.c_str());
     
-    // TODO: replace 420.0f with the object speed
-    String obj_speed_str = String("OS:") + String(420.0f);
+    String obj_speed_str = String("OS:") + String(object_velocity);
     server.write(obj_speed_str.c_str());
   }
   */
