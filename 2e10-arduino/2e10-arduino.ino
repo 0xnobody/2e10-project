@@ -133,8 +133,8 @@ float distanceToObstacleCm() {
 volatile long left_wheel_ticks_count = 0; // Keep track of the number of left wheel ticks
 volatile long right_wheel_ticks_count = 0; // Keep track of the number of right wheel ticks
 volatile long ticks_count = 0; // Average from both wheels
-const int wheel_circ = PI * 0.065; // in meters: circumference
-const int ticks_revolution = 8 * 120; // Ticks per wheel revolution = 8 ticks per motor rotation × 120 motor rotations per wheel revolution
+const double wheel_circ = PI * 0.065; // in meters: circumference
+const double ticks_revolution = 8 * 120; // Ticks per wheel revolution = 8 ticks per motor rotation × 120 motor rotations per wheel revolution
 volatile long old_ticks = 0;
 volatile long d_ticks = 0;
 int old_time = 0;
@@ -168,7 +168,7 @@ void calc_velocity() {
   velocity = (wheel_circ * d_ticks) / (ticks_revolution * d_time);
 
   // Calculate velocity of object
-  d_distance = (distanceToObstacleCm() / 100) - old_distance;
+  d_distance = (distanceToObstacleCm() - old_distance) / 100;
   old_distance = distanceToObstacleCm();
   relativeV = d_distance / d_time;
   object_velocity = velocity - relativeV;
@@ -209,9 +209,9 @@ void loop() {
   Serial.print("d Time: ");
   Serial.println(d_time);  
   Serial.print("Velocity: ");
-  Serial.println(velocity);
+  Serial.println(velocity, 6);
   Serial.print("Object Velocity: ");
-  Serial.println(object_velocity);
+  Serial.println(object_velocity, 6);
   delay(1000);
   
   /*
