@@ -133,13 +133,13 @@ float distanceToObstacleCm() {
 volatile long left_wheel_pulse_count = 0; // Keep track of the number of left wheel pulses
 volatile long right_wheel_pulse_count = 0; // Keep track of the number of right wheel pulses
 volatile long pulse_count = 0; // Average from both wheels
-const int wheel_circum = PI * 0.065; // Measured manually - in meters
-const int ENC_COUNT_REV = 8 * 120;
-volatile long velocity = 0;
+const int wheel_circ = PI * 0.065; // in meters: circumference
+const int ticks_revolution = 8 * 120; // Ticks per wheel revolution = 8 ticks per motor rotation × 120 motor rotations per wheel revolution
 volatile long old_ticks = 0;
 volatile long d_ticks = 0;
 volatile long old_time = 0;
 volatile long d_time = 0;
+volatile long velocity = 0;
 
 // Increment the number of pulses by 1 for both wheels
 void left_wheel_pulse() {
@@ -157,13 +157,12 @@ void calc_velocity() {
   old_ticks = pulse_count;
 
   // Update time
-  d_time = (millis() - old_time)/1000;
+  d_time = (millis() - old_time) / 1000;
   old_time = millis();
 
   // Calculate velocity
-  //velocity = (wheel_circum * d_ticks) / (ENC_COUNT_REV * d_time);
-  velocity = ((wheel_circum/ENC_COUNT_REV)* d_ticks) / d_time;
-  
+  //velocity = (wheel_circ * d_ticks) / (ticks_revolution * d_time);
+  velocity = ((wheel_circ / ticks_revolution) * d_ticks) / d_time;
 }
 
 bool obstacleDetected = false;
@@ -192,15 +191,15 @@ void loop() {
 
   calc_velocity();
 
-  Serial.print("LEFT Ticks: ");
+  Serial.print("Left Ticks: ");
   Serial.println(left_wheel_pulse_count);
-  Serial.print("RIGHT Ticks: ");
+  Serial.print("Right Ticks: ");
   Serial.println(right_wheel_pulse_count);
   Serial.print("d Ticks: ");
   Serial.println(d_ticks);  
-  Serial.print("d time: ");
+  Serial.print("d Time: ");
   Serial.println(d_time);  
-  Serial.print("Speed: ");
+  Serial.print("Velocity: ");
   Serial.println(velocity);
   delay(1000);
   
