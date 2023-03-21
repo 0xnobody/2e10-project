@@ -15,7 +15,8 @@ PImage ArrowRight,ArrowLeft,ArrowUp,ArrowDown;
 //String dist = " ", spd = " ", obj_spd = " ";
 
 
-int dist = 5, spd = 5, obj_spd = 5;
+int dist = 5;
+double spd = 5, obj_spd = 5;
 
 
 void setup() {
@@ -71,10 +72,11 @@ void draw() {
 
 
 
-  
+  data = client.readString();
     
   if (data != null) {
     for (String msg : data.split("\n")) {
+      println(msg);
       if (!msg.isEmpty()) {
         processMessage(msg.trim());
       }
@@ -83,8 +85,8 @@ void draw() {
 
   textSize(32);
   text("Distance to obstacle: " + dist + " cm", 100, 300);
-  text("Current speed: " + spd + " km/h", 100, 350);
-  text("Object speed: " + obj_spd + " km/h", 100, 400);
+  text("Current speed: " + spd + " m/s", 100, 350);
+  text("Object speed: " + obj_spd + " m/s", 100, 400);
 
 }
 
@@ -97,13 +99,13 @@ void processMessage(String message) {
     }
   } else if (message.startsWith("S:")) {
     try {
-      spd = (int)Float.parseFloat(message.substring(2));
+      spd = (double)Integer.parseInt(message.substring(2)) / 1000000;
     }
     catch (NumberFormatException e) {
     }
   } else if (message.startsWith("OS:")) {
     try {
-      obj_spd = (int)Float.parseFloat(message.substring(3));
+      obj_spd = (double)Integer.parseInt(message.substring(3)) / 1000000;
     }
     catch (NumberFormatException e) {
     }

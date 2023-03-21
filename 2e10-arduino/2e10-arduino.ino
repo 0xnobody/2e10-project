@@ -165,13 +165,13 @@ void calc_velocity() {
   old_time = millis();
 
   // Calculate velocity of buggy
-  velocity = (wheel_circ * d_ticks) / (ticks_revolution * d_time);
+  velocity = max(0, (wheel_circ * d_ticks) / (ticks_revolution * d_time));
 
   // Calculate velocity of object
   d_distance = (distanceToObstacleCm() - old_distance) / 100.0d;
   old_distance = distanceToObstacleCm();
   relativeV = d_distance / d_time;
-  object_velocity = velocity - relativeV;
+  object_velocity = max(0, velocity - relativeV);
 }
 
 bool obstacleDetected = false;
@@ -197,33 +197,35 @@ void loop() {
   }
 
   Input = distanceToObstacleCm();
-
-  calc_velocity();
-
-  Serial.print("Left Ticks: ");
-  Serial.println(left_wheel_ticks_count);
-  Serial.print("Right Ticks: ");
-  Serial.println(right_wheel_ticks_count);
-  Serial.print("d Ticks: ");
-  Serial.println(d_ticks);  
-  Serial.print("d Time: ");
-  Serial.println(d_time);  
-  Serial.print("Velocity: ");
-  Serial.println(velocity, 6);
-  Serial.print("Object Velocity: ");
-  Serial.println(object_velocity, 6);
   
   static int telemetryUpdateTimeMs = 0;
   if (millis() - telemetryUpdateTimeMs > telemetryDelayUpdateMs) {
     telemetryUpdateTimeMs = millis();
     
-    String dist_str = String("D:") + String(round(Input));
+    calc_velocity();
+
+   /* 
+    Serial.print("Left Ticks: ");
+    Serial.println(left_wheel_ticks_count);
+    Serial.print("Right Ticks: ");
+    Serial.println(right_wheel_ticks_count);
+    Serial.print("d Ticks: ");
+    Serial.println(d_ticks);  
+    Serial.print("d Time: ");
+    Serial.println(d_time);  
+    Serial.print("Velocity: ");
+    Serial.println(velocity, 6);
+    Serial.print("Object Velocity: ");
+    Serial.println(object_velocity, 6);
+  */
+
+    String dist_str = String("D:") + String(Input);
     server.write(dist_str.c_str());
 
-    String speed_str = String("S:") + String(round(velocity)) + "\n";
+    String speed_str = String("S:") + String((int)round(velocity * 1000000)) + "\n";
     server.write(speed_str.c_str());
     
-    String obj_speed_str = String("OS:") + String(object_velocity);
+    String obj_speed_str = String("OS:") + String((int)round(object_velocity * 1000000));
     server.write(obj_speed_str.c_str());
   }
 
