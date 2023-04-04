@@ -177,7 +177,7 @@ void calc_velocity() {
 bool obstacleDetected = false;
 bool keepDriving = true;
 const float obstacleStopDistanceCm = 10;
-const int telemetryDelayUpdateMs = 500;
+const int telemetryDelayUpdateMs = 100;
 
 void loop() {
   // We need to pulse on each tick to have an up-to-date obstacle distance.
@@ -204,22 +204,8 @@ void loop() {
     
     calc_velocity();
 
-   /* 
-    Serial.print("Left Ticks: ");
-    Serial.println(left_wheel_ticks_count);
-    Serial.print("Right Ticks: ");
-    Serial.println(right_wheel_ticks_count);
-    Serial.print("d Ticks: ");
-    Serial.println(d_ticks);  
-    Serial.print("d Time: ");
-    Serial.println(d_time);  
-    Serial.print("Velocity: ");
-    Serial.println(velocity, 6);
-    Serial.print("Object Velocity: ");
-    Serial.println(object_velocity, 6);
-  */
-
     String dist_str = String("D:") + String(Input);
+    Serial.println(dist_str.c_str());
     server.write(dist_str.c_str());
 
     String speed_str = String("S:") + String((int)round(velocity * 1000000)) + "\n";
@@ -264,12 +250,12 @@ void loop() {
   }
 
   if (leyeStatus() && !reyeStatus()){
-   moveForward((255-Output)/2, 255-Output);
+   moveForward((255-Output)/3, 255-Output);
    return;
   }
 
   if (!leyeStatus() && reyeStatus()){
-   moveForward(255-Output, (255-Output)/2);
+   moveForward(255-Output, (255-Output)/3);
    return;
   }
 

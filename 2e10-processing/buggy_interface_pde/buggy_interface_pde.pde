@@ -91,6 +91,7 @@ void draw() {
 }
 
 void processMessage(String message) {
+  println(message);
   if (message.startsWith("D:")) {
     try {
       dist = (int)Float.parseFloat(message.substring(2));
