@@ -35,7 +35,7 @@ const int RENC = 3; //right encoder
 double Input, Output, Setpoint;
 double Kp = 0.1; // Kp needs to be higher than 10
 double Ki = 0; //  Ki needs to be very small
-double Kd = 8; // Kd keep as 0 because Kd is a derivative and will only work for steady signals so the rate of error is always changing
+double Kd = 16.5; // Kd keep as 0 because Kd is a derivative and will only work for steady signals so the rate of error is always changing
 PID myPID(&Input, &Output, &Setpoint, Kp, Ki, Kd, DIRECT); // Creating PID object
 
 char ssid[] = "fuckthis";
@@ -57,7 +57,7 @@ void setup() {
 
   // Turn the PID on.
   myPID.SetMode(AUTOMATIC);
-  myPID.SetOutputLimits(-255, 255);
+  myPID.SetOutputLimits(-120, 120);
 
   // Set up input sensors.
   pinMode(LEYE, INPUT);
@@ -229,7 +229,7 @@ void loop() {
       lastGyroReadMillis = millis();
 
       float dt_sec = ((float)(dt + 3) / 1000);
-      Gx += (gyroX) * dt_sec;
+      Gx += (gyroX - gyroBiasX) * dt_sec;
       Gy += (gyroY) * dt_sec;
       Gz += (gyroZ) * dt_sec;
 
@@ -256,8 +256,8 @@ void loop() {
     }
   }
 
-  Input = Gx;
-  
+  Input = GxReal / 50;
+
   static int telemetryUpdateTimeMs = 0;
   if (millis() - telemetryUpdateTimeMs > telemetryDelayUpdateMs) {
     telemetryUpdateTimeMs = millis();
@@ -282,6 +282,11 @@ void loop() {
   }
 
   myPID.Compute();
+
+  Serial.print("Input: ");
+  Serial.print(Input);
+  Serial.print(" Output: ");
+  Serial.println(Output);
 
   //
   // Now we move the wheels based on the status of each eye.
