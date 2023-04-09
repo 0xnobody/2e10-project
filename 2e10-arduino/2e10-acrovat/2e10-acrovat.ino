@@ -33,9 +33,9 @@ const int RENC = 3; //right encoder
 
 // PID
 double Input, Output, Setpoint;
-double Kp = 0.1; // Kp needs to be higher than 10
-double Ki = 0; //  Ki needs to be very small
-double Kd = 16.5; // Kd keep as 0 because Kd is a derivative and will only work for steady signals so the rate of error is always changing
+double Kp = 0.1; // Kp needs to be low so it doesn't twerk
+double Ki = 0.2; //  Ki needs to be very small
+double Kd = 20; // Kd needs to be high because the buggy has to react very fast
 PID myPID(&Input, &Output, &Setpoint, Kp, Ki, Kd, DIRECT); // Creating PID object
 
 char ssid[] = "fuckthis";
@@ -53,11 +53,11 @@ void setup() {
   Serial.println(ip);
   server.begin();
 
-  Setpoint = 0; //buggy stops
+  Setpoint = -80.5; //angle where buggy balances itself
 
   // Turn the PID on.
   myPID.SetMode(AUTOMATIC);
-  myPID.SetOutputLimits(-120, 120);
+  myPID.SetOutputLimits(-1, 1);
 
   // Set up input sensors.
   pinMode(LEYE, INPUT);
@@ -210,13 +210,23 @@ bool keepDriving = true;
 const float obstacleStopDistanceCm = 10;
 const int telemetryDelayUpdateMs = 100;
 
-float Gx, Gy, Gz;
-float GxReal = 0;
+//float Gx, Gy, Gz;
+//float GxReal = 0;
+
+float Ax, Ay, Az;
+double currentAngle = 0;
+double PID_Speed = 0;
 
 void loop() {
+  
   // We need to pulse on each tick to have an up-to-date obstacle distance.
   pulse();
-  
+
+  IMU.readAcceleration(Ax, Ay, Az);
+  currentAngle = atan2(Ay, Az) * RAD_TO_DEG;
+  //Serial.println(currentAngle);
+
+  /*
   static int lastGyroReadMillis = 0;
   if (IMU.gyroscopeAvailable()) {
     float gyroX, gyroY, gyroZ;
@@ -242,6 +252,7 @@ void loop() {
       Serial.println();
     }
   }
+  */
 
   // If data is available, read it and see if we should keep driving or stop.
   // Update keepDriving based on this.
@@ -256,7 +267,7 @@ void loop() {
     }
   }
 
-  Input = GxReal / 50;
+  Input = currentAngle;
 
   static int telemetryUpdateTimeMs = 0;
   if (millis() - telemetryUpdateTimeMs > telemetryDelayUpdateMs) {
@@ -265,7 +276,6 @@ void loop() {
     calc_velocity();
 
     String dist_str = String("D:") + String(Input);
-    Serial.println(dist_str.c_str());
     server.write(dist_str.c_str());
 
     String speed_str = String("S:") + String((int)round(velocity * 1000000)) + "\n";
@@ -288,16 +298,23 @@ void loop() {
   Serial.print(" Output: ");
   Serial.println(Output);
 
-  //
-  // Now we move the wheels based on the status of each eye.
-  //
-  moveSigned(Output);
+  // Update motor speed based on PID Output
+  if (Output > 0) {
+    PID_Speed = 65 + (190 * Output);
+    moveForward(PID_Speed, PID_Speed);
+  }
+  else if (Output < 0) {
+    PID_Speed = 65 + (190 * abs(Output));
+    moveBackwards(PID_Speed, PID_Speed);
+  }
+  
 }
 
 void stop() {
   moveForward(0, 0);
 }
 
+/*
 void moveSigned(int power) {
   if (power > 0) {
     moveForward(power, power);
@@ -305,6 +322,7 @@ void moveSigned(int power) {
     moveBackwards(-power, -power);
   }
 }
+*/
 
 void moveForward(int leftPower, int rightPower) {
   analogWrite(LMOTOR1, leftPower);
