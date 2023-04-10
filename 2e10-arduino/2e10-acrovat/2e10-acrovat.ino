@@ -33,9 +33,9 @@ const int RENC = 3; //right encoder
 
 // PID
 double Input, Output, Setpoint;
-double Kp = 0.1; // Kp needs to be low so it doesn't twerk
-double Ki = 0.2; //  Ki needs to be very small
-double Kd = 20; // Kd needs to be high because the buggy has to react very fast
+double Kp = 2; // Kp needs to be low so it doesn't twerk
+double Ki = 0; //  Ki needs to be very small
+double Kd = 18; // Kd needs to be high because the buggy has to react very fast
 PID myPID(&Input, &Output, &Setpoint, Kp, Ki, Kd, DIRECT); // Creating PID object
 
 char ssid[] = "fuckthis";
@@ -45,19 +45,21 @@ WiFiClient client;
 WiFiServer server(5200);
 
 float gyroBiasX = 0, gyroBiasY = 0, gyroBiasZ = 0;
+float accelBiasX = 0, accelBiasY = 0, accelBiasZ = 0;
+
 void setup() {
-  Serial.begin(9600);
+  Serial.begin(31250);
 
   WiFi.beginAP(ssid, pass);
   IPAddress ip = WiFi.localIP();
   Serial.println(ip);
   server.begin();
 
-  Setpoint = -80.5; //angle where buggy balances itself
+  Setpoint = -128.5; //-80.5; //angle where buggy balances itself
 
   // Turn the PID on.
   myPID.SetMode(AUTOMATIC);
-  myPID.SetOutputLimits(-1, 1);
+  myPID.SetOutputLimits(-255, 255);
 
   // Set up input sensors.
   pinMode(LEYE, INPUT);
@@ -92,7 +94,7 @@ void setup() {
 
   int calibrationStartMillis = millis();
   int n_samples = 0;
-  while (millis() - calibrationStartMillis < 3000) {
+  while (millis() - calibrationStartMillis < 1000) {
       if (IMU.gyroscopeAvailable()) {
         float gyroX, gyroY, gyroZ;
         IMU.readGyroscope(gyroX, gyroY, gyroZ);
@@ -101,6 +103,13 @@ void setup() {
         gyroBiasY += gyroY;
         gyroBiasZ += gyroZ;
 
+        float accelX, accelY, accelZ;
+        IMU.readAcceleration(accelX, accelY, accelZ);
+
+        accelBiasX += accelX;
+        accelBiasY += accelY;
+        accelBiasZ += accelZ;
+
         n_samples++;
       }
   }
@@ -108,6 +117,10 @@ void setup() {
   gyroBiasX /= n_samples;
   gyroBiasY /= n_samples;
   gyroBiasZ /= n_samples;
+
+  accelBiasX /= n_samples;
+  accelBiasY /= n_samples;
+  accelBiasZ /= n_samples;
 
   Serial.println("...Done!");
 }
@@ -222,10 +235,27 @@ void loop() {
   // We need to pulse on each tick to have an up-to-date obstacle distance.
   pulse();
 
-  IMU.readAcceleration(Ax, Ay, Az);
-  currentAngle = atan2(Ay, Az) * RAD_TO_DEG;
-  //Serial.println(currentAngle);
+  if (IMU.accelerationAvailable()) {
+    float accelX, accelY, accelZ;
+    IMU.readAcceleration(accelX, accelY, accelZ);
 
+    Ax = accelX - accelBiasX;
+    Ay = accelY - accelBiasY;
+    Az = accelZ - accelBiasZ;
+  }
+
+  currentAngle = atan2(Ay, Az) * RAD_TO_DEG;
+
+/*
+  Serial.print("Ax: ");
+  Serial.print(Ax);
+  Serial.print(" Ay: ");
+  Serial.print(Ay);
+  Serial.print(" Az: ");
+  Serial.print(Az);
+  Serial.print(" Angle: ");
+  Serial.println(currentAngle);
+*/
   /*
   static int lastGyroReadMillis = 0;
   if (IMU.gyroscopeAvailable()) {
@@ -293,18 +323,28 @@ void loop() {
 
   myPID.Compute();
 
-  Serial.print("Input: ");
-  Serial.print(Input);
-  Serial.print(" Output: ");
-  Serial.println(Output);
+  //Serial.print("Input: ");
+  //Serial.print(Input);
+  //Serial.print(" Output: ");
+  //Serial.println(Output);
 
-  // Update motor speed based on PID Output
-  if (Output > 0) {
-    PID_Speed = 65 + (190 * Output);
+
+  Serial.print("PID_Output:");
+  Serial.print(Output);
+  Serial.print(",");
+  Serial.print("CurrentAngle:");
+  Serial.println(currentAngle);
+  
+  auto ratio = Output / 255;
+  moveSigned(Output);
+  return;
+
+  if (ratio > 0) {
+    PID_Speed = 65 + (190 * ratio);
     moveForward(PID_Speed, PID_Speed);
   }
-  else if (Output < 0) {
-    PID_Speed = 65 + (190 * abs(Output));
+  else if (ratio < 0) {
+    PID_Speed = 65 + (190 * abs(ratio));
     moveBackwards(PID_Speed, PID_Speed);
   }
   
@@ -314,7 +354,6 @@ void stop() {
   moveForward(0, 0);
 }
 
-/*
 void moveSigned(int power) {
   if (power > 0) {
     moveForward(power, power);
@@ -322,7 +361,6 @@ void moveSigned(int power) {
     moveBackwards(-power, -power);
   }
 }
-*/
 
 void moveForward(int leftPower, int rightPower) {
   analogWrite(LMOTOR1, leftPower);
