@@ -33,9 +33,9 @@ const int RENC = 3; //right encoder
 
 // PID
 double Input, Output, Setpoint;
-double Kp = 2; // Kp needs to be low so it doesn't twerk
+double Kp = 0.1; // Kp needs to be low so it doesn't twerk
 double Ki = 0; //  Ki needs to be very small
-double Kd = 18; // Kd needs to be high because the buggy has to react very fast
+double Kd = 9.5; // Kd needs to be high because the buggy has to react very fast
 PID myPID(&Input, &Output, &Setpoint, Kp, Ki, Kd, DIRECT); // Creating PID object
 
 char ssid[] = "fuckthis";
@@ -47,15 +47,29 @@ WiFiServer server(5200);
 float gyroBiasX = 0, gyroBiasY = 0, gyroBiasZ = 0;
 float accelBiasX = 0, accelBiasY = 0, accelBiasZ = 0;
 
+double error = 0;
+double previousError = 0;
+double integral = 0;
+double derivative = 0;
+
+double PID (double input, double setpoint) {
+  error = setpoint - input;
+  integral += error;
+  derivative = error - previousError;
+  previousError = error;
+
+  return Kp * error + Kd * derivative + Ki * integral;
+}
+
 void setup() {
-  Serial.begin(31250);
+  Serial.begin(9600);
 
   WiFi.beginAP(ssid, pass);
   IPAddress ip = WiFi.localIP();
   Serial.println(ip);
   server.begin();
 
-  Setpoint = -128.5; //-80.5; //angle where buggy balances itself
+  Setpoint = -89.3; //-80.5; //angle where buggy balances itself
 
   // Turn the PID on.
   myPID.SetMode(AUTOMATIC);
@@ -90,6 +104,8 @@ void setup() {
     Serial.println("Failed to init IMU");
   }
 
+/*
+
   Serial.println("Calibrating IMU... Don't move the buggy please!!!!!!!");
 
   int calibrationStartMillis = millis();
@@ -123,6 +139,7 @@ void setup() {
   accelBiasZ /= n_samples;
 
   Serial.println("...Done!");
+*/
 }
 
 void pulse() {
@@ -228,10 +245,12 @@ const int telemetryDelayUpdateMs = 100;
 
 float Ax, Ay, Az;
 double currentAngle = 0;
-double PID_Speed = 0;
+int PID_Speed = 0;
+double PID_Output = 0;
+const double angleThreshold = 2;
 
 void loop() {
-  
+/*
   // We need to pulse on each tick to have an up-to-date obstacle distance.
   pulse();
 
@@ -245,6 +264,33 @@ void loop() {
   }
 
   currentAngle = atan2(Ay, Az) * RAD_TO_DEG;
+*/
+
+  IMU.readAcceleration(Ax, Ay, Az);
+  currentAngle = atan2(Ay, Az) * RAD_TO_DEG;
+  PID_Output = PID(currentAngle, Setpoint);
+
+  if (abs(Setpoint - currentAngle) > angleThreshold) {
+    if (abs(PID_Output) < 1) {
+      PID_Speed = 65 + (190 * abs(PID_Output));
+    } else PID_Speed = 255;
+
+    if (PID_Output > 0) {
+      moveForward(PID_Speed, PID_Speed);
+    } else {
+      moveBackwards(PID_Speed, PID_Speed);
+    }
+
+  } else {
+    PID_Speed = 0;
+    stop();
+  }
+
+  //Serial.println(String(currentAngle) + " " + String(PID_Output) + " " + String(PID_Speed));
+
+  //delay(20);
+
+
 
 /*
   Serial.print("Ax: ");
@@ -283,7 +329,7 @@ void loop() {
     }
   }
   */
-
+/*
   // If data is available, read it and see if we should keep driving or stop.
   // Update keepDriving based on this.
   client = server.available();
@@ -296,9 +342,9 @@ void loop() {
       keepDriving = false;
     }
   }
+*/
 
-  Input = currentAngle;
-
+/*
   static int telemetryUpdateTimeMs = 0;
   if (millis() - telemetryUpdateTimeMs > telemetryDelayUpdateMs) {
     telemetryUpdateTimeMs = millis();
@@ -314,13 +360,17 @@ void loop() {
     String obj_speed_str = String("OS:") + String((int)round(object_velocity * 1000000));
     server.write(obj_speed_str.c_str());
   }
+*/
 
+/*
   // We only drive if the server has set keepDriving = true.
   if (!keepDriving) {
     stop();
     return;
   }
+*/
 
+/*
   myPID.Compute();
 
   //Serial.print("Input: ");
@@ -335,25 +385,27 @@ void loop() {
   Serial.print("CurrentAngle:");
   Serial.println(currentAngle);
   
-  auto ratio = Output / 255;
-  moveSigned(Output);
-  return;
+  //double ratio = double(Output) / 255.0;
+  //moveSigned(Output);
+  //return;
+  Serial.println(ratio);
 
   if (ratio > 0) {
     PID_Speed = 65 + (190 * ratio);
     moveForward(PID_Speed, PID_Speed);
   }
-  else if (ratio < 0) {
+  else {
     PID_Speed = 65 + (190 * abs(ratio));
     moveBackwards(PID_Speed, PID_Speed);
   }
-  
+*/
 }
 
 void stop() {
   moveForward(0, 0);
 }
 
+/*
 void moveSigned(int power) {
   if (power > 0) {
     moveForward(power, power);
@@ -361,6 +413,7 @@ void moveSigned(int power) {
     moveBackwards(-power, -power);
   }
 }
+*/
 
 void moveForward(int leftPower, int rightPower) {
   analogWrite(LMOTOR1, leftPower);
