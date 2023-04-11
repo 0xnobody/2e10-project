@@ -90,7 +90,6 @@ void setup() {
   pinMode(TRIG, OUTPUT);
   pinMode(ECHO, INPUT);
   pinMode(LED, OUTPUT);
-  attachInterrupt(digitalPinToInterrupt(ECHO), echoInterrupt, CHANGE);
 
   // Set up encoders.
   pinMode(LENC, INPUT_PULLUP);
@@ -104,90 +103,27 @@ void setup() {
     Serial.println("Failed to init IMU");
   }
 
-/*
-
   Serial.println("Calibrating IMU... Don't move the buggy please!!!!!!!");
 
-  int calibrationStartMillis = millis();
-  int n_samples = 0;
-  while (millis() - calibrationStartMillis < 1000) {
-      if (IMU.gyroscopeAvailable()) {
-        float gyroX, gyroY, gyroZ;
-        IMU.readGyroscope(gyroX, gyroY, gyroZ);
+  const int n_samples = 250;
 
-        gyroBiasX += gyroX;
-        gyroBiasY += gyroY;
-        gyroBiasZ += gyroZ;
+  noInterrupts();
+  for (int i = 0; i < n_samples; i++) {
+    float gyroX, gyroY, gyroZ;
 
-        float accelX, accelY, accelZ;
-        IMU.readAcceleration(accelX, accelY, accelZ);
+    IMU.readGyroscope(gyroX, gyroY, gyroZ);
 
-        accelBiasX += accelX;
-        accelBiasY += accelY;
-        accelBiasZ += accelZ;
-
-        n_samples++;
-      }
+    gyroBiasX -= gyroX;
+    gyroBiasY -= gyroY;
+    gyroBiasZ -= gyroZ;
   }
+  interrupts();
 
   gyroBiasX /= n_samples;
   gyroBiasY /= n_samples;
   gyroBiasZ /= n_samples;
 
-  accelBiasX /= n_samples;
-  accelBiasY /= n_samples;
-  accelBiasZ /= n_samples;
-
   Serial.println("...Done!");
-*/
-}
-
-void pulse() {
-  static int lastTimePulsed = 0;
-  static bool pulseSent = false;
-
-  int timeSinceLastPulse = micros() - lastTimePulsed;
-
-  // Check if we have waited long enough to trigger another pulse.
-  if (!pulseSent && timeSinceLastPulse > pulseDelayUs) {
-    digitalWrite(TRIG, HIGH);
-    lastTimePulsed = micros();
-    pulseSent = true;
-    return;
-  }
-
-  // Check if pulse duration elapsed.
-  if (pulseSent && timeSinceLastPulse > pulseDurationUs) {
-    digitalWrite(TRIG, LOW);
-    pulseSent = false;
-  }
-}
-
-volatile int echoStartUs = 0;
-volatile int echoEndUs = 0;
-volatile int echoDurationUs = 0;
-void echoInterrupt() {
-  bool state = digitalRead(ECHO) == HIGH;
-  if (state) {
-    echoEndUs = 0;
-    echoStartUs = micros();
-  }
-  else {
-    echoEndUs = micros();
-    echoDurationUs = max(0, echoEndUs - echoStartUs);
-  }
-}
-
-bool leyeStatus() {
-  return digitalRead(LEYE) == HIGH;
-}
-bool reyeStatus() {
-  return digitalRead(REYE) == HIGH;
-}
-
-double distanceToObstacleCm() {
-  // microseconds * toSecondsFactor * speedOfSound * toCmFactor * 0.5 (sound bounces)
-  return (float)echoDurationUs * 0.000001 * 343 * 100 * 0.5;
 }
 
 // Calculate velocity from encoders
@@ -227,49 +163,65 @@ void calc_velocity() {
 
   // Calculate velocity of buggy
   velocity = max(0, (wheel_circ * d_ticks) / (ticks_revolution * d_time));
-
-  // Calculate velocity of object
-  d_distance = (distanceToObstacleCm() - old_distance) / 100.0d;
-  old_distance = distanceToObstacleCm();
-  relativeV = d_distance / d_time;
-  object_velocity = max(0, velocity - relativeV);
 }
 
-bool obstacleDetected = false;
 bool keepDriving = true;
-const float obstacleStopDistanceCm = 10;
 const int telemetryDelayUpdateMs = 100;
 
-//float Gx, Gy, Gz;
-//float GxReal = 0;
-
+float Gx, Gy, Gz;
 float Ax, Ay, Az;
+float GzAngle = 0;
+
 double currentAngle = 0;
 int PID_Speed = 0;
 double PID_Output = 0;
 const double angleThreshold = 1;
 
-void loop() {
-/*
-  // We need to pulse on each tick to have an up-to-date obstacle distance.
-  pulse();
-
-  if (IMU.accelerationAvailable()) {
-    float accelX, accelY, accelZ;
-    IMU.readAcceleration(accelX, accelY, accelZ);
-
-    Ax = accelX - accelBiasX;
-    Ay = accelY - accelBiasY;
-    Az = accelZ - accelBiasZ;
+float clampAngle(float angle) {
+  if (angle > 360){
+    return angle - 360;  
+  } 
+  else if (angle < -360){
+    return angle + 360;  
   }
+  return angle;
+}
 
-  currentAngle = atan2(Ay, Az) * RAD_TO_DEG;
-*/
-
+void loop() {
   IMU.readAcceleration(Ax, Ay, Az);
   currentAngle = atan2(Ay, Az) * RAD_TO_DEG;
   PID_Output = PID(currentAngle, Setpoint);
 
+  static int prevTime = millis();
+  int currTime = millis();
+  int elapsedTimeMs = currTime - prevTime;
+  if (elapsedTimeMs > 20) {
+    prevTime = currTime;
+
+    IMU.readGyroscope(Gx, Gy, Gz);
+    Gz += gyroBiasZ;
+    GzAngle += Gz * ((float)elapsedTimeMs / 1000) * 1.15;
+    GzAngle = clampAngle(GzAngle);
+
+    //Serial.println(String(Ax) + " " + String(Ay) + " " + String(Az));
+    //Serial.println(String(Gx) + " " + String(Gy) + " " + String(Gz));
+    //Serial.println(String("Travelling at angle ") + String(GzAngle) + String(" with speed ") + String(velocity));
+  }
+
+
+  // If data is available, read it and see if we should keep driving or stop.
+  // Update keepDriving based on this.
+  client = server.available();
+  if (client.connected()) {
+    char c = client.read();
+    if (c == 'g') {
+      keepDriving = true;
+    }
+    else if (c == 's') {
+      keepDriving = false;
+    }
+  }
+  
   if (abs(Setpoint - currentAngle) > angleThreshold) {
     if (abs(PID_Output) < 1) {
       PID_Speed = 75 + (180 * abs(PID_Output));
@@ -286,134 +238,25 @@ void loop() {
     stop();
   }
 
-  //Serial.println(String(currentAngle) + " " + String(PID_Output) + " " + String(PID_Speed));
-
-  //delay(20);
-
-
-
-/*
-  Serial.print("Ax: ");
-  Serial.print(Ax);
-  Serial.print(" Ay: ");
-  Serial.print(Ay);
-  Serial.print(" Az: ");
-  Serial.print(Az);
-  Serial.print(" Angle: ");
-  Serial.println(currentAngle);
-*/
-  /*
-  static int lastGyroReadMillis = 0;
-  if (IMU.gyroscopeAvailable()) {
-    float gyroX, gyroY, gyroZ;
-    IMU.readGyroscope(gyroX, gyroY, gyroZ);
-
-    GxReal = gyroX - gyroBiasX;
-
-    auto dt = millis() - lastGyroReadMillis;
-    if (dt > 20) {
-      lastGyroReadMillis = millis();
-
-      float dt_sec = ((float)(dt + 3) / 1000);
-      Gx += (gyroX - gyroBiasX) * dt_sec;
-      Gy += (gyroY) * dt_sec;
-      Gz += (gyroZ) * dt_sec;
-
-      Serial.print("X: ");
-      Serial.print(Gx);
-      Serial.print(" Y: ");
-      Serial.print(Gy);
-      Serial.print(" Z: ");
-      Serial.print(Gz);
-      Serial.println();
-    }
-  }
-  */
-/*
-  // If data is available, read it and see if we should keep driving or stop.
-  // Update keepDriving based on this.
-  client = server.available();
-  if (client.connected()) {
-    char c = client.read();
-    if (c == 'g') {
-      keepDriving = true;
-    }
-    else if (c == 's') {
-      keepDriving = false;
-    }
-  }
-*/
-
-/*
   static int telemetryUpdateTimeMs = 0;
   if (millis() - telemetryUpdateTimeMs > telemetryDelayUpdateMs) {
     telemetryUpdateTimeMs = millis();
     
-    calc_velocity();
+    //calc_velocity();
 
-    String dist_str = String("D:") + String(Input);
-    server.write(dist_str.c_str());
+    String angle_str = String("A:") + String((int)round(GzAngle * 1000000)) + "\n";
+    server.write(angle_str.c_str());
 
-    String speed_str = String("S:") + String((int)round(velocity * 1000000)) + "\n";
-    server.write(speed_str.c_str());
-    
-    String obj_speed_str = String("OS:") + String((int)round(object_velocity * 1000000));
-    server.write(obj_speed_str.c_str());
+    String tilt_str = String("T:") + String((int)round((currentAngle - Setpoint) * 1000000)) + "\n";
+    server.write(tilt_str.c_str());
   }
-*/
 
-/*
-  // We only drive if the server has set keepDriving = true.
-  if (!keepDriving) {
-    stop();
-    return;
-  }
-*/
-
-/*
-  myPID.Compute();
-
-  //Serial.print("Input: ");
-  //Serial.print(Input);
-  //Serial.print(" Output: ");
-  //Serial.println(Output);
-
-
-  Serial.print("PID_Output:");
-  Serial.print(Output);
-  Serial.print(",");
-  Serial.print("CurrentAngle:");
-  Serial.println(currentAngle);
-  
-  //double ratio = double(Output) / 255.0;
-  //moveSigned(Output);
-  //return;
-  Serial.println(ratio);
-
-  if (ratio > 0) {
-    PID_Speed = 65 + (190 * ratio);
-    moveForward(PID_Speed, PID_Speed);
-  }
-  else {
-    PID_Speed = 65 + (190 * abs(ratio));
-    moveBackwards(PID_Speed, PID_Speed);
-  }
-*/
+  //Serial.println(String(currentAngle) + " " + String(PID_Output) + " " + String(PID_Speed));
 }
 
 void stop() {
   moveForward(0, 0);
 }
-
-/*
-void moveSigned(int power) {
-  if (power > 0) {
-    moveForward(power, power);
-  } else {
-    moveBackwards(-power, -power);
-  }
-}
-*/
 
 void moveForward(int leftPower, int rightPower) {
   analogWrite(LMOTOR1, leftPower);
