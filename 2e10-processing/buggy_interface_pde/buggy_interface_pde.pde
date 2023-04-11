@@ -8,21 +8,21 @@ color bgcol = color(40);
 Button StartButton;
 
 
-PImage  img;
+PImage  img, buggy_model;
 
 PImage ArrowRight,ArrowLeft,ArrowUp,ArrowDown;
 
 //String dist = " ", spd = " ", obj_spd = " ";
 
 
-int dist = 5;
-double spd = 5, obj_spd = 5;
-
+int dist = 5, spd = 5, obj_spd = 5;
+float buggy_rotation = 0;
 
 void setup() {
   size(1000, 700);
   
    img = loadImage("buggy.PNG");
+   buggy_model = loadImage("buggyspr.png");
    ArrowRight = loadImage("arrow.png");
    ArrowDown = loadImage("arrowdown.png");
    ArrowUp = loadImage("arrowup.png");
@@ -42,7 +42,7 @@ p5.addButton("Start")
   p5.addButton("Stop")
   .setPosition(100, 200)
   .setSize(400, 40);
-  
+  /*
   p5.addButton("Right")
   .setPosition(350, 550)
   .setImage(ArrowRight);
@@ -59,7 +59,7 @@ p5.addButton("Start")
   .setPosition(300, 550)
   .setImage(ArrowDown);
     
-    
+    */
   
  
 
@@ -68,7 +68,7 @@ p5.addButton("Start")
 
 void draw() {
     background(bgcol);
-  image(img,600,50,300,300);
+   
 
 
 
@@ -85,8 +85,23 @@ void draw() {
 
   textSize(32);
   text("Distance to obstacle: " + dist + " cm", 100, 300);
-  text("Current speed: " + spd + " m/s", 100, 350);
-  text("Object speed: " + obj_spd + " m/s", 100, 400);
+  text("Current speed: " + spd + " km/h", 100, 350);
+  text("Object speed: " + obj_spd + " km/h", 100, 400);
+  
+  text("Rotation: " + obj_spd + " degrees", 600, 100);
+  
+  //image(img,600,50,300,300);
+  
+translate(800, 500);
+  rotate(buggy_rotation  * PI / 180);
+  
+//translate(-width/2, -height/2);
+imageMode(CENTER);
+ image(buggy_model,0,0,500,500);
+
+
+rotate(-buggy_rotation  * PI / 180);
+translate(-800, -500);
 
 }
 
@@ -107,6 +122,12 @@ void processMessage(String message) {
   } else if (message.startsWith("OS:")) {
     try {
       obj_spd = (double)Integer.parseInt(message.substring(3)) / 1000000;
+    }
+    catch (NumberFormatException e) {
+    }
+  } else if (message.startsWith("R:")) {
+    try {
+      buggy_rotation = (int)Float.parseFloat(message.substring(2));
     }
     catch (NumberFormatException e) {
     }
