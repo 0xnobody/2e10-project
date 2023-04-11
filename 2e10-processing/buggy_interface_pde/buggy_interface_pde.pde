@@ -10,14 +10,18 @@ Button StartButton;
 PImage img, buggy_model;
 
 double dist = 5, spd = 5, obj_spd = 5;
+
 float tiltAngle = 0;
 float headingAngle = 0;
+float speed = 0;
+
+PathWindow wnd = null;
 
 void setup() {
   size(1000, 700);
 
   String[] args = { "Hello!" };
-  PathWindow wnd = new PathWindow();
+  wnd = new PathWindow();
   PApplet.runSketch(args, wnd);
   
   img = loadImage("buggy.PNG");
@@ -51,9 +55,6 @@ void draw() {
   }
 
   textSize(32);
-  text("Distance to obstacle: " + dist + " cm", 100, 300);
-  text("Current speed: " + spd + " km/h", 100, 350);
-  text("Object speed: " + obj_spd + " km/h", 100, 400);
 
   text("Rotation: " + obj_spd + " degrees", 600, 100);
 
@@ -83,8 +84,14 @@ void processMessage(String message) {
       tiltAngle = (double)Integer.parseInt(message.substring(2)) / 1000000;
     }
     catch (NumberFormatException e) {}
-  }
-  else {
+  } else if (message.startsWith("S:")) {
+    try {
+      speed = (double)Integer.parseInt(message.substring(2)) / 1000000;
+    }
+    catch (NumberFormatException e) {}
+  } else if (message.startsWith("PUSH")) {
+    wnd.recordMovement(new PVector(cos(headingAngle), sin(headingAngle)), speed);
+  } else {
     println(data);
   }
 }
@@ -114,12 +121,12 @@ public class PathWindow extends PApplet {
     ellipse(100, 50, 10, 10);
   }
   
-  public void recordMovement(PVector direction) {
+  public void recordMovement(PVector direction, float magnitude) {
     var currTimeMs = millis();
     var elapsedTimeMs = currTimeMs - lastRecordedTime;
     
     var origin = currentPosition;
-    var dest = origin + direction * (elapsedTimeMs * scale);
+    var dest = origin + direction * (elapsedTimeMs * scale) * magnitude;
     
     stroke(255);
     line(origin.x, origin.y, dest.x, dest.y);

@@ -33,9 +33,9 @@ const int RENC = 3; //right encoder
 
 // PID
 double Input, Output, Setpoint;
-double Kp = 0.15; // Kp needs to be low so it doesn't twerk
+double Kp = 0.1; // Kp needs to be low so it doesn't twerk
 double Ki = 0.0; //  Ki needs to be very small
-double Kd = 12.5; // Kd needs to be high because the buggy has to react very fast
+double Kd = 11; // Kd needs to be high because the buggy has to react very fast
 PID myPID(&Input, &Output, &Setpoint, Kp, Ki, Kd, DIRECT); // Creating PID object
 
 char ssid[] = "fuckthis";
@@ -171,6 +171,7 @@ const int telemetryDelayUpdateMs = 100;
 float Gx, Gy, Gz;
 float Ax, Ay, Az;
 float GzAngle = 0;
+float AzSpeed = 0;
 
 double currentAngle = 0;
 int PID_Speed = 0;
@@ -188,25 +189,34 @@ float clampAngle(float angle) {
 }
 
 void loop() {
-  IMU.readAcceleration(Ax, Ay, Az);
-  currentAngle = atan2(Ay, Az) * RAD_TO_DEG;
-  PID_Output = PID(currentAngle, Setpoint);
-
   static int prevTime = millis();
   int currTime = millis();
   int elapsedTimeMs = currTime - prevTime;
-  if (elapsedTimeMs > 20) {
-    prevTime = currTime;
+  prevTime = currTime;
 
-    IMU.readGyroscope(Gx, Gy, Gz);
-    Gz += gyroBiasZ;
-    GzAngle += Gz * ((float)elapsedTimeMs / 1000) * 1.15;
-    GzAngle = clampAngle(GzAngle);
+  float prevAx = Ax, prevAy = Ay, prevAz = Az;
 
-    //Serial.println(String(Ax) + " " + String(Ay) + " " + String(Az));
-    //Serial.println(String(Gx) + " " + String(Gy) + " " + String(Gz));
-    //Serial.println(String("Travelling at angle ") + String(GzAngle) + String(" with speed ") + String(velocity));
-  }
+  IMU.readAcceleration(Ax, Ay, Az);
+  IMU.readGyroscope(Gx, Gy, Gz);
+
+  currentAngle = atan2(Ay, Az) * RAD_TO_DEG;
+  PID_Output = PID(currentAngle, Setpoint);
+  float angleDelta = currentAngle - Setpoint;
+  float accel = abs(Ay) * tan(angleDelta);
+  AzSpeed += accel * 100 * ((float)elapsedTimeMs / 1000);
+  
+  Serial.println("Ax:" + String(Ax) + ",Ay:" + String(Ay) + ",Az:" + String(Az));
+
+  Gz += gyroBiasZ;
+  GzAngle += Gz * ((float)elapsedTimeMs / 1000) * 1.15;
+  GzAngle = clampAngle(GzAngle);
+
+  Serial.println("AzSpeed:" + String(AzSpeed) + ",GzAngle:" + String(GzAngle));
+
+  return;
+
+  //Serial.println(String(Gx) + " " + String(Gy) + " " + String(Gz));
+  //Serial.println(String("Travelling at angle ") + String(GzAngle) + String(" with speed ") + String(velocity));
 
 
   // If data is available, read it and see if we should keep driving or stop.
@@ -249,6 +259,11 @@ void loop() {
 
     String tilt_str = String("T:") + String((int)round((currentAngle - Setpoint) * 1000000)) + "\n";
     server.write(tilt_str.c_str());
+
+    String speed_str = String("S:") + String((int)round(((float)PID_Speed / 255) * 1000000)) + "\n";
+    server.write(speed_str.c_str());
+
+    server.write("PUSH");
   }
 
   //Serial.println(String(currentAngle) + " " + String(PID_Output) + " " + String(PID_Speed));
