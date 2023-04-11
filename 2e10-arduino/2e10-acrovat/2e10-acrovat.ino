@@ -33,9 +33,9 @@ const int RENC = 3; //right encoder
 
 // PID
 double Input, Output, Setpoint;
-double Kp = 0.1; // Kp needs to be low so it doesn't twerk
-double Ki = 0; //  Ki needs to be very small
-double Kd = 9.5; // Kd needs to be high because the buggy has to react very fast
+double Kp = 0.15; // Kp needs to be low so it doesn't twerk
+double Ki = 0.0; //  Ki needs to be very small
+double Kd = 12.5; // Kd needs to be high because the buggy has to react very fast
 PID myPID(&Input, &Output, &Setpoint, Kp, Ki, Kd, DIRECT); // Creating PID object
 
 char ssid[] = "fuckthis";
@@ -69,7 +69,7 @@ void setup() {
   Serial.println(ip);
   server.begin();
 
-  Setpoint = -89.3; //-80.5; //angle where buggy balances itself
+  Setpoint = -80.975; //-80.5; //angle where buggy balances itself
 
   // Turn the PID on.
   myPID.SetMode(AUTOMATIC);
@@ -247,7 +247,7 @@ float Ax, Ay, Az;
 double currentAngle = 0;
 int PID_Speed = 0;
 double PID_Output = 0;
-const double angleThreshold = 2;
+const double angleThreshold = 1;
 
 void loop() {
 /*
@@ -272,7 +272,7 @@ void loop() {
 
   if (abs(Setpoint - currentAngle) > angleThreshold) {
     if (abs(PID_Output) < 1) {
-      PID_Speed = 65 + (190 * abs(PID_Output));
+      PID_Speed = 75 + (180 * abs(PID_Output));
     } else PID_Speed = 255;
 
     if (PID_Output > 0) {
