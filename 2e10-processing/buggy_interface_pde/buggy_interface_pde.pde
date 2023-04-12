@@ -93,6 +93,7 @@ void processMessage(String message) {
     }
     catch (NumberFormatException e) {}
   } else if (message.startsWith("PUSH")) {
+    println("Heading: " + headingAngle + " at speed " + speed);
     wnd.recordMovement(new PVector(cos((float)Math.toRadians(headingAngle)), sin((float)Math.toRadians(headingAngle))), speed);
   } else {
     println(data);
@@ -120,7 +121,7 @@ class LineInfo {
 
 public class PathWindow extends PApplet {
   PVector wndDimensions = new PVector(500, 500);
-  float scale = 0.01;
+  float scale = 0.05;
   
   PVector currentPosition = new PVector(wndDimensions.x / 2, wndDimensions.y / 2);
   float lastRecordedTime = 0;
@@ -158,7 +159,7 @@ public class PathWindow extends PApplet {
     
     //println("Add path from x:" + origin.x + " y:" + origin.y + " -> x:" + dest.x + " y:" + dest.y);
     
-    mutex.lock()
+    mutex.lock();
     path.add(new LineInfo(origin, dest));
     mutex.unlock();
     
