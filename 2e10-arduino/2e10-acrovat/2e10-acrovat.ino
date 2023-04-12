@@ -201,19 +201,14 @@ void loop() {
 
   currentAngle = atan2(Ay, Az) * RAD_TO_DEG;
   PID_Output = PID(currentAngle, Setpoint);
-  float angleDelta = currentAngle - Setpoint;
-  float accel = abs(Ay) * tan(angleDelta);
-  AzSpeed += accel * 100 * ((float)elapsedTimeMs / 1000);
   
-  Serial.println("Ax:" + String(Ax) + ",Ay:" + String(Ay) + ",Az:" + String(Az));
+  //Serial.println("Ax:" + String(Ax) + ",Ay:" + String(Ay) + ",Az:" + String(Az));
 
   Gz += gyroBiasZ;
   GzAngle += Gz * ((float)elapsedTimeMs / 1000) * 1.15;
   GzAngle = clampAngle(GzAngle);
 
-  Serial.println("AzSpeed:" + String(AzSpeed) + ",GzAngle:" + String(GzAngle));
-
-  return;
+  //Serial.println("AzSpeed:" + String(AzSpeed) + ",GzAngle:" + String(GzAngle));
 
   //Serial.println(String(Gx) + " " + String(Gy) + " " + String(Gz));
   //Serial.println(String("Travelling at angle ") + String(GzAngle) + String(" with speed ") + String(velocity));
@@ -238,9 +233,9 @@ void loop() {
     } else PID_Speed = 255;
 
     if (PID_Output > 0) {
-      moveForward(PID_Speed, PID_Speed);
+      //moveForward(PID_Speed, PID_Speed);
     } else {
-      moveBackwards(PID_Speed, PID_Speed);
+      //moveBackwards(PID_Speed, PID_Speed);
     }
 
   } else {
