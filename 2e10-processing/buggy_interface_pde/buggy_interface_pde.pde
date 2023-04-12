@@ -59,7 +59,10 @@ void draw() {
 
   textSize(32);
 
-  text("Rotation: " + tiltAngle + " degrees", 600, 100);
+  text("Tilt: " + tiltAngle + " degrees", 100, 300);
+  
+  text("Heading: " + headingAngle + " degrees", 100, 360);
+  
 
   //image(img,600,50,300,300);
 
