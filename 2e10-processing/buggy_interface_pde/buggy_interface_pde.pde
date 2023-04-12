@@ -1,4 +1,4 @@
-import processing.net.*;
+import processing.net.*; //<>// //<>//
 import controlP5.*;
 import java.util.concurrent.locks.*;
 
@@ -24,9 +24,9 @@ void setup() {
   size(1000, 700);
 
   String[] args = { "Hello!" };
-  wnd = new PathWindow(); //<>//
+  wnd = new PathWindow();
   PApplet.runSketch(args, wnd);
-  
+
   img = loadImage("buggy.PNG");
   buggy_model = loadImage("buggyspr.png");
 
@@ -81,17 +81,20 @@ void processMessage(String message) {
     try {
       headingAngle = (float)Integer.parseInt(message.substring(2)) / 1000000;
     }
-    catch (NumberFormatException e) {}
+    catch (NumberFormatException e) {
+    }
   } else if (message.startsWith("T:")) {
     try {
       tiltAngle = (float)Integer.parseInt(message.substring(2)) / 1000000;
     }
-    catch (NumberFormatException e) {}
+    catch (NumberFormatException e) {
+    }
   } else if (message.startsWith("S:")) {
     try {
       speed = (float)Integer.parseInt(message.substring(2)) / 1000000;
     }
-    catch (NumberFormatException e) {}
+    catch (NumberFormatException e) {
+    }
   } else if (message.startsWith("PUSH")) {
     println("Heading: " + headingAngle + " at speed " + speed);
     wnd.recordMovement(new PVector(cos((float)Math.toRadians(headingAngle)), sin((float)Math.toRadians(headingAngle))), speed);
@@ -108,59 +111,90 @@ public void Stop() {
   client.write("s");
 }
 
-class LineInfo {
-  public PVector start;
-  public PVector end;
-  
-  public LineInfo(PVector s, PVector e)
+class Waypoint {
+  public int time;
+  public PVector destination;
+
+  public Waypoint(int t, PVector d)
   {
-    this.start = s;
-    this.end = e;
+    this.time = t;
+    this.destination = d;
   }
 };
+
+import java.util.LinkedList;
+import java.util.Queue;
+
+public class WaypointQueue {
+  public Queue<Waypoint> queue;
+  public int maxSize;
+
+  public WaypointQueue(int maxSize) {
+    this.queue = new LinkedList<>();
+    this.maxSize = maxSize;
+  }
+
+  public void addWaypoint(int time, PVector destination) {
+    Waypoint waypoint = new Waypoint(time, destination);
+
+    if (queue.size() >= maxSize) {
+      queue.remove();
+    }
+
+    queue.add(waypoint);
+  }
+}
 
 public class PathWindow extends PApplet {
   PVector wndDimensions = new PVector(750, 750);
   float scale = 0.05;
-  
+
   PVector currentPosition = new PVector(wndDimensions.x / 2, wndDimensions.y / 2);
   float lastRecordedTime = 0;
-  
+
   Lock mutex = new ReentrantLock();
-  ArrayList<LineInfo> path = new ArrayList<LineInfo>();
+  WaypointQueue waypoints = new WaypointQueue(50);
   
   public void settings() {
     size((int)wndDimensions.x, (int)wndDimensions.y);
   }
-  
+
   public void draw() {
     background(255);
     fill(0);
+
+    background(255);
+    strokeWeight(3);
     
-    var center = new PVector(wndDimensions.x / 2, wndDimensions.y / 2);
-     //<>//
     mutex.lock();
-    for (LineInfo line : path) {
-      stroke(0);
-      strokeWeight(3);
-      line(line.start.x, line.start.y, line.end.x, line.end.y);
+    int i = 0;
+    Waypoint prevWaypoint = null;
+    for (Waypoint waypoint : waypoints.queue) {
+      float c = 255 * (float)i / (float)(waypoints.queue.size() - 1);
+      stroke(255 - c);
+      if (prevWaypoint != null) {
+        line((float) prevWaypoint.destination.x, (float) prevWaypoint.destination.y,
+          (float) waypoint.destination.x, (float) waypoint.destination.y);
+      }
+      prevWaypoint = waypoint;
+      i++;
     }
     mutex.unlock();
   }
-  
+
   public void recordMovement(PVector direction, float magnitude) {
     var currTimeMs = millis();
     var elapsedTimeMs = currTimeMs - lastRecordedTime;
-    
+
     var origin = currentPosition;
     var dest = PVector.add(origin, PVector.mult(direction, elapsedTimeMs * scale * magnitude));
-    
+
     //println("Add path from x:" + origin.x + " y:" + origin.y + " -> x:" + dest.x + " y:" + dest.y);
-    
+
     mutex.lock();
-    path.add(new LineInfo(origin, dest));
+    waypoints.addWaypoint(millis(), dest);
     mutex.unlock();
-    
+
     currentPosition = dest;
     lastRecordedTime = currTimeMs;
   }
