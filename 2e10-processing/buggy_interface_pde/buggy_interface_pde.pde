@@ -59,19 +59,19 @@ void draw() {
 
   textSize(32);
 
-  text("Rotation: " + obj_spd + " degrees", 600, 100);
+  text("Rotation: " + tiltAngle + " degrees", 600, 100);
 
   //image(img,600,50,300,300);
 
   translate(800, 500);
-  rotate(tiltAngle  * PI / 180);
+  rotate(tiltAngle * PI / 180 + PI / 2);
 
   //translate(-width/2, -height/2);
   imageMode(CENTER);
   image(buggy_model, 0, 0, 500, 500);
 
 
-  rotate(-tiltAngle  * PI / 180);
+  rotate(-tiltAngle  * PI / 180 - PI / 2);
   translate(-800, -500);
 }
 
@@ -120,7 +120,7 @@ class LineInfo {
 };
 
 public class PathWindow extends PApplet {
-  PVector wndDimensions = new PVector(500, 500);
+  PVector wndDimensions = new PVector(750, 750);
   float scale = 0.05;
   
   PVector currentPosition = new PVector(wndDimensions.x / 2, wndDimensions.y / 2);
@@ -138,13 +138,11 @@ public class PathWindow extends PApplet {
     fill(0);
     
     var center = new PVector(wndDimensions.x / 2, wndDimensions.y / 2);
-    
-    ellipse(center.x, center.y, 10, 10); //<>//
-
+     //<>//
     mutex.lock();
     for (LineInfo line : path) {
       stroke(0);
-      strokeWeight(2);
+      strokeWeight(3);
       line(line.start.x, line.start.y, line.end.x, line.end.y);
     }
     mutex.unlock();
