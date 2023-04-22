@@ -34,11 +34,11 @@ const int RENC = 3; //right encoder
 double Input, Output, Setpoint;
 double Kp = 15; // Kp needs to be higher than 10
 double Ki = 0.035; //  Ki needs to be very small
-double Kd = 1; // Kd keep as 0 because Kd is a derivative and will only work for steady signals so the rate of error is always changing
+double Kd = 1;
 PID myPID(&Input, &Output, &Setpoint, Kp, Ki, Kd, DIRECT); // Creating PID object
 
-char ssid[] = "fuckthis";
-char pass[] = "bullshit";
+char ssid[] = "2e10_Z3";
+char pass[] = "silver";
 
 WiFiClient client;
 WiFiServer server(5200);

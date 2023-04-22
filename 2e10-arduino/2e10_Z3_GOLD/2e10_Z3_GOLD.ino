@@ -22,8 +22,8 @@ double Kp = 0.1; // Kp needs to be low so it doesn't twerk
 double Ki = 0.0; //  Ki needs to be very small
 double Kd = 11; // Kd needs to be high because the buggy has to react very fast
 
-char ssid[] = "fuckthis";
-char pass[] = "bullshit";
+char ssid[] = "2e10_Z3";
+char pass[] = "gold_acrobat";
 
 WiFiClient client;
 WiFiServer server(5200);
@@ -52,7 +52,7 @@ void setup() {
   Serial.println(ip);
   server.begin();
 
-  Setpoint = -80.975; //-80.5; //angle where buggy balances itself
+  Setpoint = -80.975; //angle where buggy balances itself
 
   // Set up motors.
   pinMode(LMOTOR1, OUTPUT);
@@ -122,20 +122,12 @@ void loop() {
 
   currentAngle = atan2(Ay, Az) * RAD_TO_DEG;
   PID_Output = PID(currentAngle, Setpoint);
-  
-  //Serial.println("Ax:" + String(Ax) + ",Ay:" + String(Ay) + ",Az:" + String(Az));
 
   Gx += gyroBiasX;
   Gy += gyroBiasY;
   Gz += gyroBiasZ;
   GyAngle += Gy * ((float)elapsedTimeMs / 1000) * 1.15;
   GyAngle = clampAngle(GyAngle);
-
-  //Serial.println("AzSpeed:" + String(AzSpeed) + ",GzAngle:" + String(GzAngle));
-
-  //Serial.println(String(Gx) + " " + String(Gy) + " " + String(Gz));
-  //Serial.println(String("Travelling at angle ") + String(GzAngle) + String(" with speed ") + String(velocity));
-
 
   // If data is available, read it and see if we should keep driving or stop.
   // Update keepDriving based on this.
@@ -183,7 +175,6 @@ void loop() {
     server.write("PUSH");
   }
 
-  //Serial.println(String(currentAngle) + " " + String(PID_Output) + " " + String(PID_Speed));
 }
 
 void stop() {
